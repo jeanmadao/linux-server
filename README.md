@@ -59,6 +59,7 @@ This is the DHCP server's config file in `/etc/kea/kea-dhcp4.conf`
 
 ```
 # /etc/kea/kea-dhcp4.conf
+-----------------------------------------------
 {
     # DHCPv4 configuration starts on the next line
     "Dhcp4": {
@@ -132,6 +133,7 @@ The database is now ready to be used by GLPI, which we install next.[^2]
 We first have to configure Apache VirtualHost
 ```
 # /etc/apache2/sites-available/000-default.conf
+-----------------------------------------------
 <VirtualHost *:80>
     ServerName glpi.localhost
 
@@ -175,9 +177,65 @@ ready to be used.
 
 <img src="assets/glpi_interface.png" width="800" />
 
+### Weekly backup
+To weekly backup the config files from the different services, we can create a script
+on the `root` home directory.
+
+```bash
+# /root/backup
+-----------------------------------------------
+#!/bin/bash
+
+# Backup Destination
+backdest=/opt/backup
+
+# Backup name
+PC=${HOSTNAME}
+date=$(date "+%Y%m%d-%H%M%S")
+backupfile="$backdest/$PC-$date.tar.gz"
+
+# Include file location
+prog=${0##*/}
+excdir=/root
+include_file="$excdir/$prog-exc.txt"
+
+# Archive
+tar czf "$backupfile" -C / --files-from="$include_file"
+
+# Delete the earliest backup if there is too much backup files
+nb_backups=$(ls $backdest | wc - l)
+if [[ "$nb_backups" -gt 20 ]]; then
+    early_backup=$(find $backdest | sort | head -2 | tail -1)
+    rm $early_backup
+fi
+```
+
+We can then use this script as a cronjob that runs every week.
+
+```
+0 4 * * 1 /root/backup
+```
+
+The archive are then stored in `/opt/backup/`, and can be transferred over another 
+mounted disk.
+
+<img src="assets/backup.png" width="800" />
+
 
 ## Workstation
 ### Apps installation
+As for the apps, gimp and libreoffice are installed by default by KDE Plasma. Only
+Mullvad Browser needs to be installed.
+
+```
+$ wget --content-disposition https://mullvad.net/en/download/browser/linux-x86_64/latest -P ~/Downloads
+$ cd ~/Downloads
+$ tar -xvf mullvad-browser-linux-x86_64-X.X.tar.xz
+$ cp ~/Downloads/mullvad-browser/start-mullvad-browser.desktop ~/.local/share/applications/
+```
+Afterwards, we can just start using Mullvad Browser
+
+<img src="assets/apps.png" width="800" />
 
 [^1]: https://www.isc.org/dhcp/
 [^2]: https://glpi-install.readthedocs.io/en/latest/prerequisites.html
